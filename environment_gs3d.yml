@@ -1,0 +1,27 @@
+# Conda part of the "gs3d" env (Python 3.10 + torch 2.1.2/CUDA 12.1) used for the FFGS-benchmark
+# 3DGS baseline. Don't create it from this file alone: install_gs3d.sh creates it, installs the
+# pinned pip packages (requirements_gs3d.txt) and builds the CUDA extensions with the right
+# compiler, which this file can't express.
+#
+#   bash install_gs3d.sh -n gs3d               # or: -p /path/to/envs/gs3d
+#
+# Why each piece is here:
+#   cuda-nvcc / cuda-*-dev 12.1   nvcc + headers matching torch's CUDA (12.1) for building the
+#                                 extensions; the driver only needs to support CUDA >= 12.1
+#   gcc/gxx 11                    nvcc 12.1 rejects gcc >= 12 (pybind11 cast.h errors), and system
+#                                 compilers differ per machine
+#   ninja                         fast extension builds
+name: gs3d
+channels:
+  - nvidia/label/cuda-12.1.1
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - pip
+  - cuda-nvcc=12.1.105
+  - cuda-cudart-dev=12.1.105
+  - cuda-libraries-dev=12.1.1
+  - gcc_linux-64=11.4.0
+  - gxx_linux-64=11.4.0
+  - ninja

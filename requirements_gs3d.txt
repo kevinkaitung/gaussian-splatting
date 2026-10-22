@@ -1,0 +1,45 @@
+# pip part of the "gs3d" env (see environment_gs3d.yml / install_gs3d.sh), frozen from the working
+# env. torch/torchvision come from the PyTorch cu121 index:
+#   pip install -r requirements_gs3d.txt --extra-index-url https://download.pytorch.org/whl/cu121
+#
+# Pins that matter (everything else is just the frozen state):
+#   numpy<2              torch 2.1 is built against NumPy 1.x
+#   opencv-python<4.11   newer opencv requires NumPy 2
+#   setuptools<70        torch 2.1's cpp_extension imports pkg_resources.packaging
+#   pillow<12            3DGS's Blender loader calls Image.fromarray on an np.byte array, which 12 rejects
+#
+# The CUDA extensions (diff_gaussian_rasterization, simple_knn, fused_ssim) are not listed: they are
+# built from submodules/ by install_gs3d.sh.
+torch==2.1.2+cu121
+torchvision==0.16.2+cu121
+triton==2.1.0
+numpy==1.26.4
+opencv-python==4.10.0.84
+setuptools==69.5.1
+pillow==11.0.0
+plyfile==1.1.3
+tqdm==4.70.1
+joblib==1.6.0
+lpips==0.1.4
+scikit-image==0.24.0
+scipy==1.15.3
+einops==0.8.2
+ImageIO==2.38.0
+tifffile==2025.5.10
+lazy-loader==0.6
+cloudpickle==3.1.2
+packaging==26.3
+filelock==3.32.3
+fsspec==2026.7.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+mpmath==1.3.0
+networkx==3.4.2
+sympy==1.14.0
+typing_extensions==4.16.0
+certifi==2022.12.7
+charset-normalizer==2.1.1
+idna==3.4
+requests==2.28.1
+urllib3==1.26.13
+wheel==0.47.0
