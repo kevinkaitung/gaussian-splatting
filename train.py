@@ -10,6 +10,8 @@
 #
 
 import os
+import json
+import time
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim
@@ -48,7 +50,15 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree, opt.optimizer_type)
+    # FFGS timing: scene loading (image I/O + point init) is logged but not part of recon_time;
+    # recon_time = optimization only, minus test-set evals, TB logging and PLY/checkpoint saves
+    torch.cuda.synchronize()
+    t_load = time.perf_counter()
     scene = Scene(dataset, gaussians)
+    torch.cuda.synchronize()
+    scene_load_time = time.perf_counter() - t_load
+    t_recon = time.perf_counter()
+    excluded_time = 0.0
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -155,10 +165,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
+            torch.cuda.synchronize()
+            t_excl = time.perf_counter()
             training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background, 1., SPARSE_ADAM_AVAILABLE, None, dataset.train_test_exp), dataset.train_test_exp)
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
+            torch.cuda.synchronize()
+            excluded_time += time.perf_counter() - t_excl
 
             # Densification
             if iteration < opt.densify_until_iter:
@@ -186,8 +200,24 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     gaussians.optimizer.zero_grad(set_to_none = True)
 
             if (iteration in checkpoint_iterations):
+                torch.cuda.synchronize()
+                t_excl = time.perf_counter()
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+                excluded_time += time.perf_counter() - t_excl
+
+    torch.cuda.synchronize()
+    recon_time = time.perf_counter() - t_recon - excluded_time
+    timing = {
+        "recon_time": recon_time,
+        "scene_load_time": scene_load_time,
+        "excluded_time": excluded_time,
+        "iterations": opt.iterations,
+        "num_gaussians": gaussians.get_xyz.shape[0],
+    }
+    with open(os.path.join(scene.model_path, "recon_time.json"), "w") as f:
+        json.dump(timing, f, indent=2)
+    print(f"\n[FFGS timing] recon_time {recon_time:.2f}s (excluded {excluded_time:.2f}s, scene load {scene_load_time:.2f}s)")
 
 def prepare_output_and_logger(args):    
     if not args.model_path:
