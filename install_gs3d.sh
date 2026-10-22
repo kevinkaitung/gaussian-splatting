@@ -46,11 +46,16 @@ for ext in "${EXTENSIONS[@]}"; do
     fi
 done
 
-if ! command -v conda > /dev/null; then
+# NOTE: use the conda executable, not an inherited `conda` shell function: some setups (e.g. the
+# Polaris conda module) export `conda` to child shells without its helper __conda_exe, so calling
+# it here fails with "__conda_exe: command not found"
+CONDA_BIN="${CONDA_EXE:-$(type -P conda || true)}"
+if [ -z "$CONDA_BIN" ] || [ ! -x "$CONDA_BIN" ]; then
     echo "ERROR: conda not found (on Polaris: module use /soft/modulefiles && module load conda)"
     exit 1
 fi
-eval "$(conda shell.bash hook)"
+CONDA_HOOK="$("$CONDA_BIN" shell.bash hook)"
+eval "$CONDA_HOOK"
 
 # -----------------------------------------------------------------------
 # 1. conda env: python, nvcc 12.1 + headers, gcc/g++ 11, ninja
